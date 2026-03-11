@@ -1,0 +1,17 @@
+# Dependencies
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+
+# Go build artifacts
+*.exe
+*.test
+*.out
+
+# Environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
