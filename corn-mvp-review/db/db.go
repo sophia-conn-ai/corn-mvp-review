@@ -29,10 +29,8 @@ func Connect(ctx context.Context) (*pgxpool.Pool, error) {
 	}
 
 	// afterConnect sets search_path on every new connection in the pool.
+	// The schema is pre-created by the platform; we only need to set the path.
 	afterConnect := func(ctx context.Context, conn *pgx.Conn) error {
-		if _, err := conn.Exec(ctx, "CREATE SCHEMA IF NOT EXISTS "+schema); err != nil {
-			return err
-		}
 		_, err := conn.Exec(ctx, "SET search_path TO "+schema)
 		return err
 	}
