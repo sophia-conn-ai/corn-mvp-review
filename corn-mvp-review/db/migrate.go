@@ -11,15 +11,16 @@ import (
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	_, err := pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS candidates (
-			id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			name             TEXT NOT NULL,
-			role             TEXT NOT NULL,
-			recruiter_name   TEXT NOT NULL,
-			greenhouse_link  TEXT NOT NULL,
-			stage            TEXT NOT NULL DEFAULT '',
-			stage_updated_at TIMESTAMPTZ,
-			submitted_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			week_of          TEXT NOT NULL
+			id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name               TEXT NOT NULL,
+			role               TEXT NOT NULL,
+			recruiter_name     TEXT NOT NULL,
+			greenhouse_link    TEXT NOT NULL,
+			stage              TEXT NOT NULL DEFAULT '',
+			stage_updated_at   TIMESTAMPTZ,
+			process_start_date TIMESTAMPTZ,
+			submitted_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			week_of            TEXT NOT NULL
 		);
 
 		CREATE TABLE IF NOT EXISTS candidate_grades (

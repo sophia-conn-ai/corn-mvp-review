@@ -5,52 +5,128 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
 )
 
+type ApplicationInfo struct {
+	Stage     string
+	AppliedAt time.Time // when the candidate applied in Greenhouse
+}
+
 type applicationResponse struct {
+	AppliedAt    time.Time `json:"applied_at"`
 	CurrentStage struct {
 		Name string `json:"name"`
 	} `json:"current_stage"`
 }
 
-// FetchStage returns the current Greenhouse stage name for the candidate
-// identified by the given greenhouseLink. Returns ("", nil) if the API key is
-// empty or if the link contains no application_id query parameter.
-func FetchStage(apiKey, greenhouseLink string) (string, error) {
+// FetchApplicationInfo returns the current stage and original applied_at date
+// for the candidate identified by the given greenhouseLink.
+//
+// Supported URL formats:
+//   - https://app.greenhouse.io/people/{person_id}?application_id={app_id}
+//   - https://app.greenhouse.io/people/{person_id}   (fetches most recent application)
+//
+// Returns zero-value ApplicationInfo (no error) when the API key is empty or
+// the link cannot be parsed into a recognizable format.
+func FetchApplicationInfo(apiKey, greenhouseLink string) (ApplicationInfo, error) {
 	if apiKey == "" {
-		return "", nil
+		return ApplicationInfo{}, nil
 	}
 
 	u, err := url.Parse(greenhouseLink)
 	if err != nil {
-		return "", nil
-	}
-	applicationID := u.Query().Get("application_id")
-	if applicationID == "" {
-		return "", nil
+		return ApplicationInfo{}, nil
 	}
 
+	// Prefer explicit application_id query param.
+	if applicationID := u.Query().Get("application_id"); applicationID != "" {
+		return fetchByApplicationID(apiKey, applicationID)
+	}
+
+	// Check for application ID in path: /people/{person_id}/applications/{app_id}/...
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	for i, p := range parts {
+		if p == "applications" && i+1 < len(parts) && parts[i+1] != "" {
+			return fetchByApplicationID(apiKey, parts[i+1])
+		}
+	}
+
+	// Fall back to person ID from /people/{id} path.
+	if len(parts) >= 2 && parts[0] == "people" && parts[1] != "" {
+		return fetchMostRecentApplication(apiKey, parts[1])
+	}
+
+	return ApplicationInfo{}, nil
+}
+
+func fetchByApplicationID(apiKey, applicationID string) (ApplicationInfo, error) {
 	endpoint := fmt.Sprintf("https://harvest.greenhouse.io/v1/applications/%s", applicationID)
+	return doFetchOne(apiKey, endpoint)
+}
+
+// fetchMostRecentApplication calls GET /v1/candidates/{id}/applications and
+// returns the info from the first (most recent) application in the list.
+func fetchMostRecentApplication(apiKey, personID string) (ApplicationInfo, error) {
+	endpoint := fmt.Sprintf("https://harvest.greenhouse.io/v1/candidates/%s/applications", personID)
+
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
-		return "", fmt.Errorf("build request: %w", err)
+		return ApplicationInfo{}, fmt.Errorf("build request: %w", err)
 	}
 	req.SetBasicAuth(apiKey, "")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("greenhouse api: %w", err)
+		return ApplicationInfo{}, fmt.Errorf("greenhouse api: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("greenhouse api status %d", resp.StatusCode)
+		return ApplicationInfo{}, fmt.Errorf("greenhouse api status %d", resp.StatusCode)
+	}
+
+	var apps []applicationResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apps); err != nil {
+		return ApplicationInfo{}, fmt.Errorf("decode response: %w", err)
+	}
+	if len(apps) == 0 {
+		return ApplicationInfo{}, nil
+	}
+
+	// Greenhouse returns applications ordered by most-recent first.
+	first := apps[0]
+	return ApplicationInfo{
+		Stage:     first.CurrentStage.Name,
+		AppliedAt: first.AppliedAt,
+	}, nil
+}
+
+func doFetchOne(apiKey, endpoint string) (ApplicationInfo, error) {
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return ApplicationInfo{}, fmt.Errorf("build request: %w", err)
+	}
+	req.SetBasicAuth(apiKey, "")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ApplicationInfo{}, fmt.Errorf("greenhouse api: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ApplicationInfo{}, fmt.Errorf("greenhouse api status %d", resp.StatusCode)
 	}
 
 	var body applicationResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return ApplicationInfo{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	return body.CurrentStage.Name, nil
+	return ApplicationInfo{
+		Stage:     body.CurrentStage.Name,
+		AppliedAt: body.AppliedAt,
+	}, nil
 }

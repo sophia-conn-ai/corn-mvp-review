@@ -56,8 +56,9 @@ const CandidateCard = ({ candidate, userName, onClick, onGradeUpdate }: Candidat
       : 'border-red text-red bg-red-50'
     : 'border-gray-200 text-gray-500 bg-white'
 
+  const startDate = candidate.process_start_date ?? candidate.submitted_at
   const daysInProcess = Math.floor(
-    (Date.now() - new Date(candidate.submitted_at).getTime()) / 86400000
+    (Date.now() - new Date(startDate).getTime()) / 86400000
   )
 
   return (

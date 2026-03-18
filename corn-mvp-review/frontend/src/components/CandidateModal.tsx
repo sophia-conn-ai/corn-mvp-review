@@ -58,7 +58,7 @@ const CandidateModal = ({ candidate, onClose }: CandidateModalProps) => {
             <div className="text-gray-600">
               Days in process:{' '}
               <span className="font-medium text-gray-800">
-                {Math.floor((Date.now() - new Date(candidate.submitted_at).getTime()) / 86400000)}
+                {Math.floor((Date.now() - new Date(candidate.process_start_date ?? candidate.submitted_at).getTime()) / 86400000)}
               </span>
             </div>
             <a

@@ -17,12 +17,8 @@ const Sidebar = ({ activePage, setActivePage, userName, setUserName }: SidebarPr
     <div className="w-64 bg-white border-r border-gray-300 flex flex-col">
       <div className="p-6 border-b border-gray-300">
         <div className="flex items-center gap-3">
-          <img
-            src="/applied-logo.png"
-            alt="Applied Intuition"
-            className="h-10 w-auto"
-          />
-          <div className="text-xl font-bold text-gray-900">Candidate Review</div>
+          <span className="text-3xl">🌽</span>
+          <div className="text-xl font-bold text-gray-900">MVP Review</div>
         </div>
       </div>
 
