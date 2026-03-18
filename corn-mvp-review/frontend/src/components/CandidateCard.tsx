@@ -56,14 +56,28 @@ const CandidateCard = ({ candidate, userName, onClick, onGradeUpdate }: Candidat
       : 'border-red text-red bg-red-50'
     : 'border-gray-200 text-gray-500 bg-white'
 
+  const daysInProcess = Math.floor(
+    (Date.now() - new Date(candidate.submitted_at).getTime()) / 86400000
+  )
+
   return (
     <div
       onClick={onClick}
       className="bg-white border border-gray-300 rounded-lg p-4 flex flex-col gap-2 hover:border-gray-400 hover:shadow-sm transition-all cursor-pointer"
     >
-      <div>
-        <div className="font-semibold text-gray-900">{candidate.name}</div>
-        <div className="text-sm text-gray-500">{candidate.role}</div>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="font-semibold text-gray-900">{candidate.name}</div>
+          <div className="text-sm text-gray-500">{candidate.role}</div>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className="text-xs text-gray-400 font-medium">Day {daysInProcess}</span>
+          {candidate.stage && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+              {candidate.stage}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="text-sm text-gray-600">

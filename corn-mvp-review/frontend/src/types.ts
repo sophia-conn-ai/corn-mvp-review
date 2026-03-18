@@ -11,6 +11,7 @@ export interface Candidate {
   role: string
   recruiter_name: string
   greenhouse_link: string
+  stage: string
   grades: UserGrade[]
   submitted_at: string
   week_of: string
