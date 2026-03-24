@@ -55,6 +55,7 @@ type CreateCandidateRequest struct {
 	Role           string `json:"role" binding:"required"`
 	RecruiterName  string `json:"recruiter_name" binding:"required"`
 	GreenhouseLink string `json:"greenhouse_link" binding:"required"`
+	WeekOf         string `json:"week_of"` // optional override for testing (YYYY-MM-DD)
 }
 
 type UpdateGradeRequest struct {
@@ -106,6 +107,9 @@ func CreateCandidate(c *gin.Context) {
 	}
 	now := time.Now()
 	wk := weekOf(now)
+	if req.WeekOf != "" {
+		wk = req.WeekOf
+	}
 
 	// Fetch stage + applied_at from Greenhouse synchronously so the card
 	// immediately shows the correct stage and days-in-process.
