@@ -1,7 +1,15 @@
 import type { Candidate, Grade, UserGrade } from '../types'
 
+const GRADE_SCORE: Record<Grade, number> = {
+  'Definitely Not': -2,
+  'No': -1,
+  'Yes': 1,
+  'Strong Yes': 2,
+}
+
 interface CandidateModalProps {
   candidate: Candidate
+  userName: string
   onClose: () => void
 }
 
@@ -16,8 +24,9 @@ const gradeBadgeClass = (grade: Grade) => {
 const userInitial = (name: string) =>
   name.trim() ? name.trim()[0].toUpperCase() : '?'
 
-const CandidateModal = ({ candidate, onClose }: CandidateModalProps) => {
+const CandidateModal = ({ candidate, userName, onClose }: CandidateModalProps) => {
   const grades = candidate.grades ?? []
+  const hasVoted = grades.some((g) => g.user_name === userName)
 
   return (
     <div
@@ -73,9 +82,20 @@ const CandidateModal = ({ candidate, onClose }: CandidateModalProps) => {
 
           {/* Team grades */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Team Grades</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-700">Team Grades</h3>
+              {hasVoted && grades.length > 0 && (
+                <span className="text-sm font-semibold text-gray-500">
+                  Score: {grades.reduce((sum, g) => sum + GRADE_SCORE[g.grade], 0)}
+                </span>
+              )}
+            </div>
             {grades.length === 0 ? (
               <p className="text-sm text-gray-400">No grades yet.</p>
+            ) : !hasVoted ? (
+              <p className="text-sm text-gray-400">
+                {grades.length} {grades.length === 1 ? 'person has' : 'people have'} voted — add your grade to see results.
+              </p>
             ) : (
               <ul className="space-y-2">
                 {grades.map((ug: UserGrade) => (

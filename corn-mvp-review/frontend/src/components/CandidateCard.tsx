@@ -10,6 +10,12 @@ interface CandidateCardProps {
 
 const POSITIVE_GRADES = new Set<Grade>(['Yes', 'Strong Yes'])
 const GRADE_OPTIONS: Grade[] = ['Definitely Not', 'No', 'Yes', 'Strong Yes']
+const GRADE_SCORE: Record<Grade, number> = {
+  'Definitely Not': -2,
+  'No': -1,
+  'Yes': 1,
+  'Strong Yes': 2,
+}
 
 const gradeBadgeClass = (grade: Grade) => {
   const base = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium'
@@ -116,13 +122,24 @@ const CandidateCard = ({ candidate, userName, onClick, onGradeUpdate }: Candidat
 
       {/* Team grade summary */}
       {grades.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-gray-100 pt-2 mt-1">
-          {gradeOrder.map((g) =>
-            counts[g] ? (
-              <span key={g} className={gradeBadgeClass(g)}>
-                {g} ×{counts[g]}
+        <div className="border-t border-gray-100 pt-2 mt-1">
+          {myGrade ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {gradeOrder.map((g) =>
+                counts[g] ? (
+                  <span key={g} className={gradeBadgeClass(g)}>
+                    {g} ×{counts[g]}
+                  </span>
+                ) : null
+              )}
+              <span className="ml-auto text-xs font-semibold text-gray-500">
+                Score: {grades.reduce((sum, g) => sum + GRADE_SCORE[g.grade], 0)}
               </span>
-            ) : null
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">
+              {grades.length} {grades.length === 1 ? 'vote' : 'votes'} — grade to see results
+            </p>
           )}
         </div>
       )}
