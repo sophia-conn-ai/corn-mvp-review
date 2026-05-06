@@ -4,11 +4,13 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go-backend-react-frontend/greenhouse"
 )
 
 type Grade string
@@ -38,6 +40,8 @@ type Candidate struct {
 	Role           string      `json:"role"`
 	RecruiterName  string      `json:"recruiter_name"`
 	GreenhouseLink string      `json:"greenhouse_link"`
+	Stage          string      `json:"stage"`
+	Hired          bool        `json:"hired"`
 	Grades         []UserGrade `json:"grades"`
 	SubmittedAt    time.Time   `json:"submitted_at"`
 	WeekOf         string      `json:"week_of"`
@@ -81,6 +85,10 @@ func CreateCandidate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	apiKey := os.Getenv("GREENHOUSE_API_KEY")
+	ghInfo, _ := greenhouse.FetchApplicationInfo(apiKey, req.GreenhouseLink)
+
 	now := time.Now()
 	candidate := Candidate{
 		ID:             generateID(),
@@ -88,6 +96,8 @@ func CreateCandidate(c *gin.Context) {
 		Role:           req.Role,
 		RecruiterName:  req.RecruiterName,
 		GreenhouseLink: req.GreenhouseLink,
+		Stage:          ghInfo.Stage,
+		Hired:          ghInfo.Hired,
 		Grades:         []UserGrade{},
 		SubmittedAt:    now,
 		WeekOf:         weekOf(now),
@@ -116,7 +126,6 @@ func UpdateGrade(c *gin.Context) {
 	defer mu.Unlock()
 	for i, cand := range candidates {
 		if cand.ID == id {
-			// Upsert: update if user already graded, otherwise append
 			for j, ug := range candidates[i].Grades {
 				if ug.UserName == req.UserName {
 					candidates[i].Grades[j].Grade = req.Grade
@@ -170,4 +179,18 @@ func ListWeeks(c *gin.Context) {
 
 	sort.Sort(sort.Reverse(sort.StringSlice(weeks)))
 	c.JSON(http.StatusOK, weeks)
+}
+
+func ListLegacy(c *gin.Context) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	result := make([]Candidate, len(candidates))
+	copy(result, candidates)
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].SubmittedAt.Before(result[j].SubmittedAt)
+	})
+
+	c.JSON(http.StatusOK, result)
 }

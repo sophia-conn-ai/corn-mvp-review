@@ -25,6 +25,7 @@ func main() {
 		api.GET("/candidates", handlers.ListCandidates)
 		api.GET("/candidates/weeks", handlers.ListWeeks)
 		api.PATCH("/candidates/:id/grade", handlers.UpdateGrade)
+		api.GET("/legacy", handlers.ListLegacy)
 	}
 
 	// Serve embedded frontend in production, or proxy to Vite in dev
