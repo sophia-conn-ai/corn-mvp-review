@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -114,15 +115,16 @@ func CreateCandidate(c *gin.Context) {
 		row := pool.QueryRow(c.Request.Context(), `
 			INSERT INTO candidates (name, role, recruiter_name, greenhouse_link, week_of, submitted_at)
 			VALUES ($1, $2, $3, $4, $5, $6)
-			RETURNING id, name, role, recruiter_name, greenhouse_link, stage, hired, submitted_at, week_of
+			RETURNING id, name, role, recruiter_name, greenhouse_link, stage, submitted_at, week_of
 		`, req.Name, req.Role, req.RecruiterName, req.GreenhouseLink, wk, now)
 
 		var cand Candidate
 		if err := row.Scan(&cand.ID, &cand.Name, &cand.Role, &cand.RecruiterName,
-			&cand.GreenhouseLink, &cand.Stage, &cand.Hired, &cand.SubmittedAt, &cand.WeekOf); err != nil {
+			&cand.GreenhouseLink, &cand.Stage, &cand.SubmittedAt, &cand.WeekOf); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		cand.Hired = isHired(cand.Stage)
 		cand.Grades = []UserGrade{}
 		go syncStage(cand.ID, cand.GreenhouseLink)
 		c.JSON(http.StatusCreated, cand)
@@ -340,7 +342,7 @@ func ListLegacy(c *gin.Context) {
 func fetchCandidates(ctx context.Context, week string) ([]Candidate, error) {
 	query := `
 		SELECT c.id, c.name, c.role, c.recruiter_name, c.greenhouse_link,
-		       c.stage, c.hired, c.submitted_at, c.week_of,
+		       c.stage, c.submitted_at, c.week_of,
 		       g.user_name, g.grade
 		FROM candidates c
 		LEFT JOIN candidate_grades g ON g.candidate_id = c.id
@@ -364,12 +366,11 @@ func fetchCandidates(ctx context.Context, week string) ([]Candidate, error) {
 	for rows.Next() {
 		var (
 			id, name, role, recruiterName, greenhouseLink, stage, weekOfStr string
-			hired                                                            bool
 			submittedAt                                                      time.Time
 			userNameStr, gradeStr                                            *string
 		)
 		if err := rows.Scan(&id, &name, &role, &recruiterName, &greenhouseLink,
-			&stage, &hired, &submittedAt, &weekOfStr, &userNameStr, &gradeStr); err != nil {
+			&stage, &submittedAt, &weekOfStr, &userNameStr, &gradeStr); err != nil {
 			return nil, err
 		}
 		if _, exists := byID[id]; !exists {
@@ -380,7 +381,7 @@ func fetchCandidates(ctx context.Context, week string) ([]Candidate, error) {
 				RecruiterName:  recruiterName,
 				GreenhouseLink: greenhouseLink,
 				Stage:          stage,
-				Hired:          hired,
+				Hired:          isHired(stage),
 				SubmittedAt:    submittedAt,
 				WeekOf:         weekOfStr,
 				Grades:         []UserGrade{},
@@ -405,7 +406,7 @@ func fetchCandidates(ctx context.Context, week string) ([]Candidate, error) {
 func fetchByID(ctx context.Context, id string) (Candidate, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT c.id, c.name, c.role, c.recruiter_name, c.greenhouse_link,
-		       c.stage, c.hired, c.submitted_at, c.week_of,
+		       c.stage, c.submitted_at, c.week_of,
 		       g.user_name, g.grade
 		FROM candidates c
 		LEFT JOIN candidate_grades g ON g.candidate_id = c.id
@@ -420,12 +421,11 @@ func fetchByID(ctx context.Context, id string) (Candidate, error) {
 	for rows.Next() {
 		var (
 			cID, name, role, recruiterName, greenhouseLink, stage, weekOfStr string
-			hired                                                             bool
 			submittedAt                                                       time.Time
 			userNameStr, gradeStr                                             *string
 		)
 		if err := rows.Scan(&cID, &name, &role, &recruiterName, &greenhouseLink,
-			&stage, &hired, &submittedAt, &weekOfStr, &userNameStr, &gradeStr); err != nil {
+			&stage, &submittedAt, &weekOfStr, &userNameStr, &gradeStr); err != nil {
 			return Candidate{}, err
 		}
 		if cand == nil {
@@ -436,7 +436,7 @@ func fetchByID(ctx context.Context, id string) (Candidate, error) {
 				RecruiterName:  recruiterName,
 				GreenhouseLink: greenhouseLink,
 				Stage:          stage,
-				Hired:          hired,
+				Hired:          isHired(stage),
 				SubmittedAt:    submittedAt,
 				WeekOf:         weekOfStr,
 				Grades:         []UserGrade{},
@@ -455,8 +455,13 @@ func fetchByID(ctx context.Context, id string) (Candidate, error) {
 	return *cand, nil
 }
 
-// syncStage fetches the current Greenhouse stage and hired status for a candidate
-// and updates the DB. No-op when GREENHOUSE_API_KEY is not set or pool is nil.
+// isHired derives hired status from the Greenhouse stage name.
+func isHired(stage string) bool {
+	return strings.EqualFold(stage, "hired")
+}
+
+// syncStage fetches the current Greenhouse stage for a candidate and updates the DB.
+// No-op when GREENHOUSE_API_KEY is not set or pool is nil.
 func syncStage(candidateID, greenhouseLink string) {
 	apiKey := os.Getenv("GREENHOUSE_API_KEY")
 	if apiKey == "" || pool == nil {
@@ -467,6 +472,6 @@ func syncStage(candidateID, greenhouseLink string) {
 		return
 	}
 	pool.Exec(context.Background(), `
-		UPDATE candidates SET stage = $1, hired = $2, stage_updated_at = NOW() WHERE id = $3
-	`, info.Stage, info.Hired, candidateID)
+		UPDATE candidates SET stage = $1, stage_updated_at = NOW() WHERE id = $2
+	`, info.Stage, candidateID)
 }
