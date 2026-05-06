@@ -43,12 +43,10 @@ func FetchApplicationInfo(apiKey, greenhouseLink string) (ApplicationInfo, error
 		return ApplicationInfo{}, nil
 	}
 
-	// Prefer explicit application_id query param.
 	if applicationID := u.Query().Get("application_id"); applicationID != "" {
 		return fetchByApplicationID(apiKey, applicationID)
 	}
 
-	// Check for application ID in path: /people/{person_id}/applications/{app_id}/...
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
 	for i, p := range parts {
 		if p == "applications" && i+1 < len(parts) && parts[i+1] != "" {
@@ -56,7 +54,6 @@ func FetchApplicationInfo(apiKey, greenhouseLink string) (ApplicationInfo, error
 		}
 	}
 
-	// Fall back to person ID from /people/{id} path.
 	if len(parts) >= 2 && parts[0] == "people" && parts[1] != "" {
 		return fetchMostRecentApplication(apiKey, parts[1])
 	}
