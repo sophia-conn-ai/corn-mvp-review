@@ -50,6 +50,17 @@ const CandidateModal = ({ candidate, onClose }: CandidateModalProps) => {
             <div className="text-gray-600">
               Recruiter: <span className="font-medium text-gray-800">{candidate.recruiter_name}</span>
             </div>
+            {candidate.stage && (
+              <div className="text-gray-600">
+                Stage: <span className="font-medium text-gray-800">{candidate.stage}</span>
+              </div>
+            )}
+            <div className="text-gray-600">
+              Days in process:{' '}
+              <span className="font-medium text-gray-800">
+                {Math.floor((Date.now() - new Date(candidate.submitted_at).getTime()) / 86400000)}
+              </span>
+            </div>
             <a
               href={candidate.greenhouse_link}
               target="_blank"

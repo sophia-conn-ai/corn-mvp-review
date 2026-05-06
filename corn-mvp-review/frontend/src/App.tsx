@@ -2,8 +2,9 @@ import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import SubmitForm from './components/SubmitForm'
 import CandidateList from './components/CandidateList'
+import LegacyView from './components/LegacyView'
 
-type Page = 'review' | 'submit'
+type Page = 'review' | 'submit' | 'legacy'
 
 function App() {
   const [activePage, setActivePage] = useState<Page>('review')
@@ -25,6 +26,8 @@ function App() {
       <div className="flex-1 overflow-auto">
         {activePage === 'submit' ? (
           <SubmitForm onSuccess={() => setActivePage('review')} />
+        ) : activePage === 'legacy' ? (
+          <LegacyView />
         ) : (
           <CandidateList userName={userName} />
         )}

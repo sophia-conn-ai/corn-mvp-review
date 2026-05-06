@@ -1,4 +1,4 @@
-type Page = 'review' | 'submit'
+type Page = 'review' | 'submit' | 'legacy'
 
 interface SidebarProps {
   activePage: Page
@@ -11,6 +11,7 @@ const Sidebar = ({ activePage, setActivePage, userName, setUserName }: SidebarPr
   const pages: { id: Page; label: string }[] = [
     { id: 'submit', label: 'Submit Candidate' },
     { id: 'review', label: 'Review Board' },
+    { id: 'legacy', label: 'Legacy' },
   ]
 
   return (

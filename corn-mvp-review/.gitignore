@@ -5,6 +5,7 @@ frontend/node_modules/
 frontend/dist/
 
 # Go build artifacts
+app
 *.exe
 *.test
 *.out
