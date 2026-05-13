@@ -13,6 +13,7 @@ export interface Candidate {
   greenhouse_link: string
   stage: string
   hired: boolean
+  process_start_date?: string | null
   grades: UserGrade[]
   submitted_at: string
   week_of: string

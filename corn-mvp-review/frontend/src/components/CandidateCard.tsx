@@ -10,6 +10,12 @@ interface CandidateCardProps {
 
 const POSITIVE_GRADES = new Set<Grade>(['Yes', 'Strong Yes'])
 const GRADE_OPTIONS: Grade[] = ['Definitely Not', 'No', 'Yes', 'Strong Yes']
+const GRADE_SCORE: Record<Grade, number> = {
+  'Definitely Not': -2,
+  'No': -1,
+  'Yes': 1,
+  'Strong Yes': 2,
+}
 
 const gradeBadgeClass = (grade: Grade) => {
   const base = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium'
@@ -56,8 +62,9 @@ const CandidateCard = ({ candidate, userName, onClick, onGradeUpdate }: Candidat
       : 'border-red text-red bg-red-50'
     : 'border-gray-200 text-gray-500 bg-white'
 
+  const startDate = candidate.process_start_date ?? candidate.submitted_at
   const daysInProcess = Math.floor(
-    (Date.now() - new Date(candidate.submitted_at).getTime()) / 86400000
+    (Date.now() - new Date(startDate).getTime()) / 86400000
   )
 
   return (
@@ -71,7 +78,7 @@ const CandidateCard = ({ candidate, userName, onClick, onGradeUpdate }: Candidat
           <div className="text-sm text-gray-500">{candidate.role}</div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <span className="text-xs text-gray-400 font-medium">Day {daysInProcess}</span>
+          <span className="text-xs text-gray-400 font-medium">{daysInProcess}d</span>
           {candidate.stage && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
               {candidate.stage}
@@ -94,7 +101,6 @@ const CandidateCard = ({ candidate, userName, onClick, onGradeUpdate }: Candidat
         Greenhouse Profile →
       </a>
 
-      {/* Grade dropdown */}
       <div onClick={(e) => e.stopPropagation()}>
         {!userName.trim() ? (
           <p className="text-xs text-gray-400">Set your name in the sidebar to grade</p>
@@ -113,15 +119,25 @@ const CandidateCard = ({ candidate, userName, onClick, onGradeUpdate }: Candidat
         )}
       </div>
 
-      {/* Team grade summary */}
       {grades.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-gray-100 pt-2 mt-1">
-          {gradeOrder.map((g) =>
-            counts[g] ? (
-              <span key={g} className={gradeBadgeClass(g)}>
-                {g} ×{counts[g]}
+        <div className="border-t border-gray-100 pt-2 mt-1">
+          {myGrade ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {gradeOrder.map((g) =>
+                counts[g] ? (
+                  <span key={g} className={gradeBadgeClass(g)}>
+                    {g} ×{counts[g]}
+                  </span>
+                ) : null
+              )}
+              <span className="ml-auto text-xs font-semibold text-gray-500">
+                Score: {grades.reduce((sum, g) => sum + GRADE_SCORE[g.grade], 0)}
               </span>
-            ) : null
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">
+              {grades.length} {grades.length === 1 ? 'vote' : 'votes'} — grade to see results
+            </p>
           )}
         </div>
       )}
