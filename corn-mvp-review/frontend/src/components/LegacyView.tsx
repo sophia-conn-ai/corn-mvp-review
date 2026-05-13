@@ -1,22 +1,23 @@
 import { useState, useEffect } from 'react'
 import type { Candidate } from '../types'
 
-// Predefined pipeline order — stages not in this list appear at the end alphabetically.
+// Predefined pipeline order — stages not in this list are excluded from the board.
 const STAGE_ORDER = [
-  'IPS',
-  'Sell Chat',
-  'TPS',
-  'Onsite',
-  'Leads Chat',
-  'Post Leads Chat',
-  'Offer',
+  'Initial Phone Screen',
+  'Technical Phone Screen',
+  'Pre-Interview Sell Chat',
+  'Onsite and Leads Chat',
+  'Hiring Committee',
   'Hired',
 ]
 
 const stageRank = (stage: string) => {
   const idx = STAGE_ORDER.findIndex((s) => s.toLowerCase() === stage.toLowerCase())
-  return idx === -1 ? STAGE_ORDER.length : idx
+  return idx
 }
+
+const isKnownStage = (stage: string) =>
+  STAGE_ORDER.some((s) => s.toLowerCase() === stage.toLowerCase())
 
 const daysAgo = (candidate: Candidate) =>
   Math.floor((Date.now() - new Date(candidate.process_start_date ?? candidate.submitted_at).getTime()) / 86400000)
@@ -114,12 +115,12 @@ const LegacyView = () => {
       .then((candidates) => {
         const byStage: Record<string, Candidate[]> = {}
         for (const c of candidates) {
-          const key = c.stage || 'Unknown'
-          if (!byStage[key]) byStage[key] = []
-          byStage[key].push(c)
+          if (!c.stage || !isKnownStage(c.stage)) continue
+          if (!byStage[c.stage]) byStage[c.stage] = []
+          byStage[c.stage].push(c)
         }
         const sorted = Object.entries(byStage)
-          .sort(([a], [b]) => stageRank(a) - stageRank(b) || a.localeCompare(b))
+          .sort(([a], [b]) => stageRank(a) - stageRank(b))
           .map(([stage, candidates]) => ({ stage, candidates }))
         setColumns(sorted)
       })
