@@ -132,14 +132,15 @@ func CreateCandidate(c *gin.Context) {
 	}
 
 	// In-memory fallback
+	stage := resolvedStage(ghInfo)
 	cand := Candidate{
 		ID:             generateID(),
 		Name:           req.Name,
 		Role:           req.Role,
 		RecruiterName:  req.RecruiterName,
 		GreenhouseLink: req.GreenhouseLink,
-		Stage:          ghInfo.Stage,
-		Hired:          ghInfo.Hired,
+		Stage:          stage,
+		Hired:          isHired(stage),
 		Grades:         []UserGrade{},
 		SubmittedAt:    now,
 		WeekOf:         wk,
@@ -322,6 +323,14 @@ func ListLegacy(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		// Sync all candidates in the background so hired status is always fresh.
+		// This catches cases where a candidate's Greenhouse application status
+		// is "hired" but current_stage still shows a mid-pipeline stage name.
+		go func() {
+			for _, cand := range result {
+				syncStage(cand.ID, cand.GreenhouseLink)
+			}
+		}()
 		c.JSON(http.StatusOK, result)
 		return
 	}
@@ -460,7 +469,17 @@ func isHired(stage string) bool {
 	return strings.EqualFold(stage, "hired")
 }
 
-// syncStage fetches the current Greenhouse stage for a candidate and updates the DB.
+// resolvedStage returns the stage to store, using "Hired" when the Greenhouse
+// application status is hired — regardless of what current_stage says.
+func resolvedStage(info greenhouse.ApplicationInfo) string {
+	if info.Hired {
+		return "Hired"
+	}
+	return info.Stage
+}
+
+// syncStage fetches the current Greenhouse stage/status for a candidate and updates the DB.
+// If the application status is hired, stores "Hired" as the stage even if current_stage differs.
 // No-op when GREENHOUSE_API_KEY is not set or pool is nil.
 func syncStage(candidateID, greenhouseLink string) {
 	apiKey := os.Getenv("GREENHOUSE_API_KEY")
@@ -468,10 +487,11 @@ func syncStage(candidateID, greenhouseLink string) {
 		return
 	}
 	info, err := greenhouse.FetchApplicationInfo(apiKey, greenhouseLink)
-	if err != nil || info.Stage == "" {
+	if err != nil || (info.Stage == "" && !info.Hired) {
 		return
 	}
+	stage := resolvedStage(info)
 	pool.Exec(context.Background(), `
 		UPDATE candidates SET stage = $1, stage_updated_at = NOW() WHERE id = $2
-	`, info.Stage, candidateID)
+	`, stage, candidateID)
 }
